@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strategic Minds: Game Theory Strategies</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        :root {
+            --bg-main: #fdfbf7;
+            --text-main: #1f2937;
+            --accent-coop: #84a98c;
+            --accent-defect: #e76f51;
+            --card-bg: #ffffff;
+        }
+        body { 
+            background-color: var(--bg-main); 
+            color: var(--text-main); 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+        }
+        .chart-container { 
+            position: relative; 
+            width: 100%; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            height: 320px; 
+        }
+        .tab-active { 
+            border-bottom: 3px solid #1f2937; 
+            color: #1f2937; 
+            font-weight: 600; 
+        }
+        .tab-inactive { 
+            color: #6b7280; 
+            border-bottom: 3px solid transparent; 
+        }
+        .ai-glow { 
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.15); 
+            border: 1px solid rgba(139, 92, 246, 0.2); 
+        }
+        .loader { 
+            border: 2px solid #f3f3f3; 
+            border-top: 2px solid #8b5cf6; 
+            border-radius: 50%; 
+            width: 18px; 
+            height: 18px; 
+            animation: spin 1s linear infinite; 
+            display: inline-block; 
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .modal-overlay { 
+            background: rgba(0,0,0,0.5); 
+            backdrop-filter: blur(8px); 
+        }
+        /* Payoff Matrix Styling */
+        .matrix-grid {
+            display: grid;
+            grid-template-columns: 80px 1fr 1fr;
+            gap: 8px;
+        }
+        .matrix-cell {
+            aspect-ratio: 16/9;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 12px;
+            padding: 10px;
+            text-align: center;
+        }
+    </style>
+    <!-- Chosen Palette: Warm Neutral Harmony -->
+    <!-- Application Structure Plan:
+        - Single-page dashboard layout.
+        - Iterated Prisoner's Dilemma Simulator with real-time Chart.js tracking.
+        - Integrated Gemini 2.5 Flash for "Strategy Analysis" and "Conflict Mapping".
+        - Secure Settings Modal for API key management (stored in sessionStorage).
+        - Responsive Tailwind layout designed for desktop and mobile.
+    -->
+    <!-- Visualization & Content Choices:
+        - Line Chart: Visualizes the accumulation of points over time (Player vs. Bot).
+        - Dynamic Text Blocks: Updated via Gemini to provide contextual research.
+        - Matrices: Built using CSS Grid for maximum clarity and responsiveness.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+</head>
+<body class="antialiased min-h-screen flex flex-col">
+
+    <!-- Sticky Navigation -->
+    <nav class="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center space-x-2">
+                    <span class="text-2xl font-black tracking-tighter text-gray-900">STRATEGIC<span class="text-indigo-600">MINDS</span></span>
+                </div>
+                <div class="flex items-center space-x-1 md:space-x-8">
+                    <button onclick="switchTab('sim')" class="nav-btn tab-active text-sm uppercase tracking-widest px-2 py-4" id="btn-sim">Simulator</button>
+                    <button onclick="switchTab('concepts')" class="nav-btn tab-inactive text-sm uppercase tracking-widest px-2 py-4" id="btn-concepts">Library</button>
+                    <button onclick="switchTab('apps')" class="nav-btn tab-inactive text-sm uppercase tracking-widest px-2 py-4" id="btn-apps">AI Expert</button>
+                    <button onclick="openSettings()" class="ml-4 p-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-indigo-600 transition-colors" title="Settings">
+                        <span class="text-xl">⚙️</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        
+        <!-- INTRO HERO -->
+        <div class="mb-12 text-center max-w-3xl mx-auto" id="hero-section">
+            <h1 class="text-4xl font-extrabold text-gray-900 sm:text-5xl mb-4">Strategic Research & Simulation</h1>
+            <p class="text-lg text-gray-600">Analyze human behavior through the cold lens of mathematics and ✨ Artificial Intelligence.</p>
+        </div>
+
+        <!-- VIEW: SIMULATION -->
+        <div id="view-sim" class="space-y-8 animate-in fade-in duration-500">
+            <div class="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+                <div class="p-6 md:p-10 bg-slate-50 border-b border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <h2 class="text-3xl font-bold text-gray-900">The War Room</h2>
+                        <p class="text-gray-500">Iterated Prisoner's Dilemma Simulator</p>
+                    </div>
+                    <div class="flex items-center space-x-3 bg-white p-2 rounded-2xl shadow-sm border">
+                        <label class="text-xs font-bold text-gray-400 uppercase ml-2">Opponent:</label>
+                        <select id="opp-strat" class="text-sm font-semibold border-none focus:ring-0 bg-transparent py-1 pr-8">
+                            <option value="titfortat">Tit-for-Tat (Copies you)</option>
+                            <option value="random">Random (Chaos)</option>
+                            <option value="grudger">Grim Trigger (Unforgiving)</option>
+                            <option value="always_defect">Defector (Selfish)</option>
+                        </select>
+                        <button onclick="resetGame()" class="text-xs text-red-500 hover:text-red-700 font-bold px-3">Reset</button>
+                    </div>
+                </div>
+
+                <div class="p-6 md:p-10 grid grid-cols-1 lg:grid-cols-12 gap-10">
+                    <!-- Simulation Controls -->
+                    <div class="lg:col-span-7 space-y-8">
+                        <div class="flex flex-col items-center justify-center p-8 bg-white rounded-2xl border border-gray-100 shadow-inner">
+                            <h3 class="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Choose Your Action</h3>
+                            <div class="flex space-x-6">
+                                <button onclick="playRound('cooperate')" class="group relative flex flex-col items-center justify-center w-36 h-32 bg-[#84a98c] hover:bg-[#6b8c73] text-white rounded-2xl shadow-lg transition-all active:scale-95">
+                                    <span class="text-3xl mb-1">🤝</span>
+                                    <span class="font-bold text-lg">Cooperate</span>
+                                </button>
+                                <button onclick="playRound('defect')" class="group relative flex flex-col items-center justify-center w-36 h-32 bg-[#e76f51] hover:bg-[#c65d42] text-white rounded-2xl shadow-lg transition-all active:scale-95">
+                                    <span class="text-3xl mb-1">⚔️</span>
+                                    <span class="font-bold text-lg">Defect</span>
+                                </button>
+                            </div>
+                            <div id="move-feedback" class="mt-8 text-sm font-medium text-gray-400 italic">Play a move to start simulation</div>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                            <div class="chart-container">
+                                <canvas id="scoreChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sidebar Stats & AI -->
+                    <div class="lg:col-span-5 space-y-6">
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="bg-slate-100 p-4 rounded-2xl text-center">
+                                <div class="text-[10px] font-bold text-gray-400 uppercase">You</div>
+                                <div id="p1-s" class="text-3xl font-black text-gray-800">0</div>
+                            </div>
+                            <div class="bg-slate-800 p-4 rounded-2xl text-center">
+                                <div class="text-[10px] font-bold text-slate-400 uppercase">Round</div>
+                                <div id="round-n" class="text-3xl font-black text-white">0</div>
+                            </div>
+                            <div class="bg-slate-100 p-4 rounded-2xl text-center">
+                                <div class="text-[10px] font-bold text-gray-400 uppercase">Bot</div>
+                                <div id="p2-s" class="text-3xl font-black text-gray-800">0</div>
+                            </div>
+                        </div>
+
+                        <div class="bg-indigo-50 p-8 rounded-3xl border border-indigo-100 ai-glow relative overflow-hidden h-[360px] flex flex-col">
+                            <div class="flex items-center space-x-2 mb-4">
+                                <span class="text-xl">✨</span>
+                                <h3 class="font-bold text-indigo-900">Psychological Profile</h3>
+                            </div>
+                            <div id="ai-box" class="text-sm text-indigo-800 leading-relaxed overflow-y-auto pr-2 no-scrollbar flex-grow">
+                                <div class="py-12 text-center text-indigo-300 italic">
+                                    Play at least 5 rounds to unlock a AI deep-dive into your strategic behavior.
+                                </div>
+                            </div>
+                            <button id="analyze-btn" disabled onclick="getAnalysis()" class="mt-4 w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                                Analyze Playstyle
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW: CONCEPTS -->
+        <div id="view-concepts" class="hidden space-y-10 animate-in fade-in duration-500">
+            <div class="max-w-4xl mx-auto space-y-12">
+                <div class="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+                    <h3 class="text-2xl font-bold mb-6">Classic Payoff Matrices</h3>
+                    <div class="matrix-grid">
+                        <div class="matrix-cell"></div>
+                        <div class="matrix-cell text-xs font-bold text-gray-400">COOPERATE</div>
+                        <div class="matrix-cell text-xs font-bold text-gray-400">DEFECT</div>
+
+                        <div class="matrix-cell text-xs font-bold text-gray-400">COOP</div>
+                        <div class="matrix-cell bg-green-50 border border-green-100">
+                            <span class="text-green-800 font-bold text-xl">3, 3</span>
+                            <span class="text-[10px] text-green-600">Reward</span>
+                        </div>
+                        <div class="matrix-cell bg-gray-50">
+                            <span class="text-gray-800 font-bold text-xl">0, 5</span>
+                            <span class="text-[10px] text-gray-400">Sucker's</span>
+                        </div>
+
+                        <div class="matrix-cell text-xs font-bold text-gray-400">DEFECT</div>
+                        <div class="matrix-cell bg-gray-50">
+                            <span class="text-gray-800 font-bold text-xl">5, 0</span>
+                            <span class="text-[10px] text-gray-400">Temptation</span>
+                        </div>
+                        <div class="matrix-cell bg-red-50 border border-red-100">
+                            <span class="text-red-800 font-bold text-xl">1, 1</span>
+                            <span class="text-[10px] text-red-600">Punishment</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="p-8 bg-white rounded-3xl border border-gray-100 shadow-sm">
+                        <h4 class="font-bold text-lg mb-2">The Hawk-Dove (Chicken)</h4>
+                        <p class="text-sm text-gray-600">A model of conflict where two parties head toward disaster. The one who swerves is the "Chicken". In geopolitics, this explains nuclear brinkmanship.</p>
+                    </div>
+                    <div class="p-8 bg-white rounded-3xl border border-gray-100 shadow-sm">
+                        <h4 class="font-bold text-lg mb-2">The Stag Hunt</h4>
+                        <p class="text-sm text-gray-600">A game of trust. Cooperation catches a Stag (high payoff), but hunting Rabbit alone is safer. It perfectly models climate change treaties.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW: APPLICATIONS (CONFLICT MAPPER) -->
+        <div id="view-apps" class="hidden space-y-8 animate-in fade-in duration-500">
+            <div class="bg-indigo-900 rounded-[2.5rem] p-8 md:p-12 text-white ai-glow relative overflow-hidden">
+                <div class="relative z-10 flex flex-col lg:flex-row gap-12">
+                    <div class="flex-1 space-y-6">
+                        <h2 class="text-4xl font-black flex items-center">
+                            <span class="mr-3">✨</span> CONFLICT MAPPER
+                        </h2>
+                        <p class="text-indigo-200 text-lg">Input any real-world conflict or negotiation. The AI will translate it into game-theoretical terms and suggest optimal moves.</p>
+                        <div class="space-y-4">
+                            <textarea id="conflict-txt" class="w-full h-48 p-6 rounded-3xl bg-indigo-950/50 border border-indigo-700 focus:border-white focus:ring-0 text-white placeholder-indigo-400 text-sm" placeholder="e.g. A salary negotiation between a top developer and a cash-strapped startup..."></textarea>
+                            <button onclick="mapConflict()" class="px-10 py-4 bg-white text-indigo-900 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-indigo-50 transition-colors flex items-center">
+                                <span id="map-loader" class="loader mr-3 hidden"></span> Run Analysis
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex-1 bg-white rounded-3xl p-8 text-gray-800 shadow-2xl overflow-y-auto max-h-[500px]" id="map-res">
+                        <div class="h-full flex flex-col items-center justify-center text-center py-20">
+                            <div class="text-4xl mb-4">🧬</div>
+                            <p class="text-gray-400 font-medium italic">Describe a conflict to see its underlying mathematical structure.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- SETTINGS MODAL -->
+    <div id="settings-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden modal-overlay p-4">
+        <div class="bg-white rounded-[2rem] shadow-2xl max-w-md w-full p-10 transform scale-100 transition-transform">
+            <h3 class="text-2xl font-black text-gray-900 mb-2">API KEY</h3>
+            <p class="text-sm text-gray-500 mb-6">Enter your Gemini API key to unlock the AI analyst and mapping features. Key is stored locally in your browser.</p>
+            <input type="password" id="api-key-input" class="w-full p-4 bg-gray-50 border-none rounded-2xl mb-6 focus:ring-2 focus:ring-indigo-500" placeholder="AIzaSy...">
+            <div class="flex space-x-4">
+                <button onclick="closeSettings()" class="flex-1 py-4 text-gray-400 font-bold hover:text-gray-600">Dismiss</button>
+                <button onclick="saveSettings()" class="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-200">Save & Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- GLOBAL STATE ---
+        let gameState = { round: 0, p1: 0, p2: 0, hist: [] };
+        let chart = null;
+
+        // --- API HELPERS ---
+        const getApiKey = () => sessionStorage.getItem('gemini_api_key') || "";
+        
+        async function callGemini(prompt, sys = "") {
+            const key = getApiKey();
+            if(!key) { openSettings(); return null; }
+            
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${key}`;
+            const payload = {
+                contents: [{parts:[{text: prompt}]}],
+                systemInstruction: sys ? {parts:[{text: sys}]} : undefined
+            };
+
+            for (let i = 0; i < 3; i++) {
+                try {
+                    const res = await fetch(url, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(payload)
+                    });
+                    if(!res.ok) throw new Error();
+                    const data = await res.json();
+                    return data.candidates[0].content.parts[0].text;
+                } catch(e) {
+                    await new Promise(r => setTimeout(r, Math.pow(2, i) * 1000));
+                }
+            }
+            return "Connection error. Please check your API key.";
+        }
+
+        // --- UI NAVIGATION ---
+        function switchTab(t) {
+            document.getElementById('view-sim').classList.toggle('hidden', t !== 'sim');
+            document.getElementById('view-concepts').classList.toggle('hidden', t !== 'concepts');
+            document.getElementById('view-apps').classList.toggle('hidden', t !== 'apps');
+            document.getElementById('hero-section').classList.toggle('hidden', t !== 'sim');
+            
+            ['sim', 'concepts', 'apps'].forEach(id => {
+                const btn = document.getElementById(`btn-${id}`);
+                btn.className = (id === t) ? 'nav-btn tab-active text-sm uppercase tracking-widest px-2 py-4' : 'nav-btn tab-inactive text-sm uppercase tracking-widest px-2 py-4';
+            });
+        }
+
+        function openSettings() { document.getElementById('settings-modal').classList.remove('hidden'); }
+        function closeSettings() { document.getElementById('settings-modal').classList.add('hidden'); }
+        function saveSettings() { 
+            const val = document.getElementById('api-key-input').value;
+            if(val) sessionStorage.setItem('gemini_api_key', val);
+            closeSettings();
+        }
+
+        // --- SIMULATION ENGINE ---
+        function initChart() {
+            const ctx = document.getElementById('scoreChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'You', borderColor: '#84a98c', backgroundColor: 'rgba(132,169,140,0.1)', data: [], fill: true, tension: 0.3, pointRadius: 0 },
+                        { label: 'Bot', borderColor: '#e76f51', data: [], borderDash: [5, 5], tension: 0.3, pointRadius: 0 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, grid: { display: false } },
+                        x: { grid: { display: false } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        function playRound(move) {
+            const strat = document.getElementById('opp-strat').value;
+            const last = gameState.hist.length > 0 ? gameState.hist[gameState.hist.length-1] : null;
+            
+            let bMove = 'cooperate';
+            if(strat==='random') bMove = Math.random() > 0.5 ? 'cooperate' : 'defect';
+            else if(strat==='titfortat') bMove = last ? last.p1 : 'cooperate';
+            else if(strat==='grudger') bMove = gameState.hist.some(h=>h.p1==='defect') ? 'defect' : 'cooperate';
+            else if(strat==='always_defect') bMove = 'defect';
+
+            const pts = (move==='cooperate') ? (bMove==='cooperate' ? [3,3] : [0,5]) : (bMove==='cooperate' ? [5,0] : [1,1]);
+            
+            gameState.round++;
+            gameState.p1 += pts[0];
+            gameState.p2 += pts[1];
+            gameState.hist.push({p1:move, p2:bMove});
+
+            // UI Updates
+            document.getElementById('p1-s').innerText = gameState.p1;
+            document.getElementById('p2-s').innerText = gameState.p2;
+            document.getElementById('round-n').innerText = gameState.round;
+            document.getElementById('move-feedback').innerText = `R${gameState.round}: You ${move}, Bot ${bMove} (+${pts[0]})`;
+            
+            chart.data.labels.push(gameState.round);
+            chart.data.datasets[0].data.push(gameState.p1);
+            chart.data.datasets[1].data.push(gameState.p2);
+            chart.update();
+
+            if(gameState.round >= 5) document.getElementById('analyze-btn').disabled = false;
+        }
+
+        function resetGame() {
+            gameState = { round: 0, p1: 0, p2: 0, hist: [] };
+            document.getElementById('p1-s').innerText = '0';
+            document.getElementById('p2-s').innerText = '0';
+            document.getElementById('round-n').innerText = '0';
+            document.getElementById('analyze-btn').disabled = true;
+            document.getElementById('ai-box').innerHTML = `<div class="py-12 text-center text-indigo-300 italic">Play at least 5 rounds to unlock analysis.</div>`;
+            chart.data.labels = [];
+            chart.data.datasets.forEach(d => d.data = []);
+            chart.update();
+        }
+
+        // --- AI INTERACTION ---
+        async function getAnalysis() {
+            const box = document.getElementById('ai-box');
+            box.innerHTML = `<div class="flex items-center space-x-2 py-4"><span class="loader"></span> <span class="text-xs">Synthesizing behavior...</span></div>`;
+            
+            const h = gameState.hist.map(r => `R${gameState.round}: You ${r.p1}, Bot ${r.p2}`).join(' | ');
+            const res = await callGemini(`Strategy History: ${h}`, "You are a world-class game theorist. Analyze this player's strategy in an Iterated Prisoner's Dilemma. Define their archetype and give 1 piece of advice for high scores. Be concise.");
+            
+            if(res) box.innerHTML = `<div class="prose-sm leading-relaxed">${res.replace(/\n/g, '<br>')}</div>`;
+        }
+
+        async function mapConflict() {
+            const txt = document.getElementById('conflict-txt').value;
+            const resBox = document.getElementById('map-res');
+            const loader = document.getElementById('map-loader');
+            
+            if(!txt.trim()) return;
+
+            loader.classList.remove('hidden');
+            resBox.innerHTML = `<div class="h-full flex flex-col items-center justify-center"><span class="loader"></span><p class="mt-4 text-xs font-bold text-indigo-900">MAPPING VARIABLES</p></div>`;
+            
+            const res = await callGemini(txt, "Map this scenario to a Game Theory model. List the Players, the Payoffs, the Model Type (PD, Chicken, etc), and the Optimal Strategy. Use bold headers.");
+            
+            if(res) {
+                resBox.innerHTML = `<div class="prose text-gray-800">${res.split('\n').map(l => l.startsWith('**') ? `<h4 class="font-bold text-indigo-900 mt-4">${l.replace(/\*\*/g, '')}</h4>` : `<p class="mt-2">${l}</p>`).join('')}</div>`;
+            }
+            loader.classList.add('hidden');
+        }
+
+        window.onload = initChart;
+    </script>
+</body>
+</html>
