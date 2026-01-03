@@ -3,18 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Strategic Minds | Secure Midnight Edition</title>
+    <title>Strategic Minds | Midnight Edition v2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <!-- Marked.js for rendering Gemini's Markdown responses -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap');
 
         :root {
             --bg-deep: #0a0a0c;
             --card-bg: #141417;
-            --accent-primary: #6366f1; /* Indigo */
-            --accent-success: #10b981; /* Emerald */
-            --accent-danger: #f43f5e;  /* Rose */
+            --accent-primary: #6366f1;
+            --accent-success: #10b981;
+            --accent-danger: #f43f5e;
             --glass-border: rgba(255, 255, 255, 0.08);
         }
 
@@ -25,51 +27,41 @@
             overflow-x: hidden;
         }
 
-        .mono { font-family: 'JetBrains Mono', monospace; }
-
         .glass {
             background: var(--card-bg);
             border: 1px solid var(--glass-border);
             backdrop-filter: blur(12px);
         }
 
-        .neon-glow-indigo { box-shadow: 0 0 20px rgba(99, 102, 241, 0.15); }
-        .neon-glow-emerald { box-shadow: 0 0 20px rgba(16, 185, 129, 0.15); }
+        .neon-glow-indigo { box-shadow: 0 0 25px rgba(99, 102, 241, 0.1); }
         
-        .chart-container {
-            position: relative;
-            width: 100%;
-            height: 280px;
-        }
+        .chart-container { position: relative; width: 100%; height: 260px; }
+
+        /* Styling for Rendered Markdown from Gemini */
+        .prose-dark h1, .prose-dark h2, .prose-dark h3 { color: #818cf8; font-weight: 800; margin-top: 1.5rem; margin-bottom: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.25rem; }
+        .prose-dark p { margin-bottom: 1rem; color: #cbd5e1; }
+        .prose-dark ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 1rem; color: #94a3b8; }
+        .prose-dark strong { color: #fff; }
+        .prose-dark code { font-family: 'JetBrains Mono', monospace; background: rgba(0,0,0,0.3); padding: 0.2rem 0.4rem; border-radius: 4px; color: #f43f5e; }
 
         .loader {
-            width: 20px;
-            height: 20px;
+            width: 18px; height: 18px;
             border: 2px solid rgba(99, 102, 241, 0.2);
             border-top-color: var(--accent-primary);
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
         }
-
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        .game-card:hover {
-            border-color: var(--accent-primary);
-            transform: translateY(-2px);
-        }
-
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: var(--bg-deep); }
-        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        .fade-transition { transition: opacity 0.3s ease-in-out; }
     </style>
 </head>
 <body class="antialiased selection:bg-indigo-500/30">
 
-    <!-- Header / Navigation -->
     <nav class="sticky top-0 z-50 glass border-b border-white/5 px-6 py-4">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
             <div class="flex items-center space-x-3">
-                <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/40">Σ</div>
+                <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center font-bold text-white shadow-lg">Σ</div>
                 <span class="text-xl font-extrabold tracking-tighter uppercase">Strategic <span class="text-indigo-500">Minds</span></span>
             </div>
             <div class="flex space-x-1 bg-black/40 p-1 rounded-xl border border-white/5">
@@ -80,167 +72,141 @@
         </div>
     </nav>
 
-    <main class="max-w-7xl mx-auto px-6 py-10 space-y-12">
+    <main class="max-w-7xl mx-auto px-6 py-10 space-y-10">
         
         <!-- SECTION: SIMULATION -->
-        <div id="view-sim" class="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-500">
+        <div id="view-sim" class="space-y-8 animate-in fade-in duration-500">
             
-            <!-- Sidebar: Stats & Game Choice -->
-            <div class="lg:col-span-3 space-y-6">
-                <div class="glass p-6 rounded-2xl space-y-4">
-                    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest">Active Game</h3>
-                    <select id="game-selector" onchange="resetGame()" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                        <option value="pd">Prisoner's Dilemma</option>
-                        <option value="chicken">Game of Chicken</option>
-                        <option value="staghunt">Stag Hunt</option>
-                    </select>
-                    
-                    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest pt-4">Opponent Strategy</h3>
-                    <select id="strat-selector" onchange="resetGame()" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                        <option value="titfortat">Tit-for-Tat</option>
-                        <option value="grudger">Grim Trigger</option>
-                        <option value="always_defect">Always Defect</option>
-                        <option value="random">Pure Random</option>
-                    </select>
-                </div>
-
-                <div class="glass p-6 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-transparent">
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="text-center">
-                            <div class="text-[10px] text-gray-500 uppercase font-bold">You</div>
-                            <div id="p1-score" class="text-3xl font-black text-indigo-400 mono">0</div>
-                        </div>
-                        <div class="text-center border-l border-white/10">
-                            <div class="text-[10px] text-gray-500 uppercase font-bold">Bot</div>
-                            <div id="p2-score" class="text-3xl font-black text-rose-400 mono">0</div>
-                        </div>
+            <!-- Dynamic Briefing Panel -->
+            <div id="game-briefing" class="glass p-8 rounded-[2rem] border-l-4 border-l-indigo-500 bg-gradient-to-r from-indigo-500/5 to-transparent">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div class="space-y-2">
+                        <div class="text-xs font-bold text-indigo-400 uppercase tracking-[0.2em]">Strategic Briefing</div>
+                        <h2 id="briefing-title" class="text-3xl font-black text-white">Prisoner's Dilemma</h2>
+                        <p id="briefing-desc" class="text-gray-400 max-w-2xl leading-relaxed">The classical model of cooperation. Two suspects are interrogated separately. Will you remain silent or betray your partner?</p>
                     </div>
-                    <div class="mt-4 pt-4 border-t border-white/5 text-center">
-                        <div class="text-[10px] text-gray-500 uppercase font-bold mb-1">Total Rounds</div>
-                        <div id="round-count" class="text-xl font-bold text-white mono">0</div>
+                    <div class="grid grid-cols-2 gap-4 bg-black/40 p-4 rounded-2xl border border-white/5">
+                        <div>
+                            <div class="text-[10px] text-gray-500 uppercase font-bold mb-1">🤝 Cooperate</div>
+                            <div id="briefing-coop" class="text-xs text-emerald-400 font-medium italic">"Stay Silent"</div>
+                        </div>
+                        <div class="border-l border-white/10 pl-4">
+                            <div class="text-[10px] text-gray-500 uppercase font-bold mb-1">⚔️ Defect</div>
+                            <div id="briefing-defect" class="text-xs text-rose-400 font-medium italic">"Betray Accomplice"</div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Main Stage -->
-            <div class="lg:col-span-6 space-y-8">
-                <div class="glass p-8 rounded-3xl border-indigo-500/20 neon-glow-indigo relative overflow-hidden">
-                    <div class="relative z-10 flex flex-col items-center">
-                        <div id="outcome-banner" class="mb-8 text-center h-12 flex items-center justify-center font-bold text-indigo-200">
-                            Choose your move to begin the iteration.
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <!-- Controls & Stats -->
+                <div class="lg:col-span-3 space-y-6">
+                    <div class="glass p-6 rounded-2xl space-y-4">
+                        <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest">Global Protocol</h3>
+                        <select id="game-selector" onchange="updateGameContext()" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <option value="pd">Prisoner's Dilemma</option>
+                            <option value="chicken">Game of Chicken</option>
+                            <option value="staghunt">Stag Hunt</option>
+                        </select>
+                        
+                        <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest pt-4">Opponent Profile</h3>
+                        <select id="strat-selector" onchange="resetGame()" class="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <option value="titfortat">Tit-for-Tat (Reciprocal)</option>
+                            <option value="grudger">Grim Trigger (Unforgiving)</option>
+                            <option value="always_defect">Always Defect (Cynic)</option>
+                            <option value="random">Pure Random (Agent of Chaos)</option>
+                        </select>
+                    </div>
+
+                    <div class="glass p-6 rounded-2xl">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="text-center">
+                                <div class="text-[10px] text-gray-500 uppercase font-bold">Player</div>
+                                <div id="p1-score" class="text-3xl font-black text-indigo-400">0</div>
+                            </div>
+                            <div class="text-center border-l border-white/10">
+                                <div class="text-[10px] text-gray-500 uppercase font-bold">Bot</div>
+                                <div id="p2-score" class="text-3xl font-black text-rose-400">0</div>
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-white/5 text-center flex justify-between items-center">
+                            <span class="text-[10px] text-gray-500 uppercase font-bold">Rounds</span>
+                            <span id="round-count" class="text-sm font-bold text-white">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Simulation Visuals -->
+                <div class="lg:col-span-6 space-y-8">
+                    <div class="glass p-8 rounded-[2.5rem] neon-glow-indigo relative flex flex-col items-center justify-center min-h-[300px]">
+                        <div id="outcome-banner" class="mb-10 text-center h-12 flex items-center justify-center font-semibold text-indigo-100 text-lg">
+                            Ready for initialization.
                         </div>
 
-                        <div class="flex space-x-6">
-                            <button onclick="playRound('cooperate')" class="group flex flex-col items-center space-y-3">
-                                <div class="w-24 h-24 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center justify-center text-3xl group-hover:bg-emerald-500 group-hover:text-white transition-all duration-300">🤝</div>
-                                <span class="text-xs font-bold uppercase tracking-widest text-emerald-400">Cooperate</span>
+                        <div class="flex space-x-8">
+                            <button onclick="playRound('cooperate')" class="group flex flex-col items-center space-y-4">
+                                <div class="w-24 h-24 bg-emerald-500/5 border border-emerald-500/20 rounded-3xl flex items-center justify-center text-4xl group-hover:bg-emerald-500 group-hover:text-white transition-all duration-500 group-hover:scale-110">🤝</div>
+                                <span class="text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-500/60 group-hover:text-emerald-400">Cooperate</span>
                             </button>
-                            <button onclick="playRound('defect')" class="group flex flex-col items-center space-y-3">
-                                <div class="w-24 h-24 bg-rose-500/10 border border-rose-500/30 rounded-2xl flex items-center justify-center text-3xl group-hover:bg-rose-500 group-hover:text-white transition-all duration-300">⚔️</div>
-                                <span class="text-xs font-bold uppercase tracking-widest text-rose-400">Defect</span>
+                            <button onclick="playRound('defect')" class="group flex flex-col items-center space-y-4">
+                                <div class="w-24 h-24 bg-rose-500/5 border border-rose-500/20 rounded-3xl flex items-center justify-center text-4xl group-hover:bg-rose-500 group-hover:text-white transition-all duration-500 group-hover:scale-110">⚔️</div>
+                                <span class="text-[10px] font-bold uppercase tracking-[0.3em] text-rose-500/60 group-hover:text-rose-400">Defect</span>
                             </button>
                         </div>
                     </div>
-                    <!-- Background accent -->
-                    <div class="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-3xl rounded-full -mr-16 -mt-16"></div>
-                </div>
 
-                <div class="glass p-6 rounded-2xl">
-                    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Performance Delta</h3>
-                    <div class="chart-container">
-                        <canvas id="mainChart"></canvas>
+                    <div class="glass p-6 rounded-3xl">
+                        <div class="chart-container">
+                            <canvas id="mainChart"></canvas>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- AI Intelligence Panel -->
-            <div class="lg:col-span-3 space-y-6">
-                <div class="glass p-6 rounded-2xl border-indigo-500/30 min-h-[400px] flex flex-col">
-                    <div class="flex justify-between items-center mb-6">
-                        <h3 class="text-xs font-bold text-indigo-400 uppercase tracking-widest flex items-center">
-                            <span class="mr-2">✨</span> AI Strategist
-                        </h3>
-                        <div id="ai-status" class="hidden"><div class="loader"></div></div>
-                    </div>
-                    
-                    <div id="ai-response-box" class="flex-grow text-sm leading-relaxed text-gray-400 italic">
-                        Play at least 5 rounds. I will then analyze your patterns, identify your player archetype, and suggest ways to outmaneuver the current bot logic.
-                    </div>
+                <!-- AI Analysis -->
+                <div class="lg:col-span-3">
+                    <div class="glass p-6 rounded-3xl border-indigo-500/20 h-full flex flex-col">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="text-xs font-bold text-indigo-400 uppercase tracking-widest flex items-center">
+                                <span class="mr-2">✨</span> Strategist
+                            </h3>
+                            <div id="ai-status" class="hidden"><div class="loader"></div></div>
+                        </div>
+                        
+                        <!-- AI Response Container (Markdown Rendered) -->
+                        <div id="ai-response-box" class="flex-grow prose-dark text-xs overflow-y-auto max-h-[450px] pr-2 scroll-smooth">
+                            <p class="italic text-gray-500">History threshold: 5 rounds required for pattern analysis.</p>
+                        </div>
 
-                    <button id="analyze-btn" disabled onclick="requestAIAnalysis()" class="mt-6 w-full py-3 bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed border border-white/10 rounded-xl text-xs font-bold uppercase transition">
-                        Analyze Behavior
-                    </button>
+                        <button id="analyze-btn" disabled onclick="requestAIAnalysis()" class="mt-6 w-full py-4 bg-indigo-600/10 hover:bg-indigo-600 hover:text-white disabled:opacity-20 border border-indigo-500/30 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all">
+                            Run Analysis
+                        </button>
+                    </div>
                 </div>
-                <button onclick="resetGame()" class="w-full py-3 text-xs font-bold text-rose-500/70 hover:text-rose-400 uppercase tracking-widest transition">
-                    Reset Session
-                </button>
             </div>
         </div>
 
-        <!-- SECTION: LIBRARY -->
+        <!-- SECTION: LIBRARY & LAB (Simplified UI) -->
         <div id="view-library" class="hidden grid grid-cols-1 md:grid-cols-2 gap-8 animate-in slide-in-from-bottom-5 duration-500">
-            <div class="glass p-8 rounded-3xl space-y-4 game-card transition-all">
-                <div class="text-indigo-400 text-3xl">⚖️</div>
-                <h2 class="text-2xl font-bold">The Prisoner's Dilemma</h2>
-                <p class="text-gray-400 leading-relaxed">The foundational model of game theory. It demonstrates why two completely rational individuals might not cooperate, even if it appears that it is in their best interests to do so.</p>
-                <div class="bg-black/30 p-4 rounded-xl border border-white/5 text-xs mono text-gray-500">
-                    Nash Equilibrium: (Defect, Defect)<br>
-                    Pareto Optimal: (Cooperate, Cooperate)
-                </div>
-            </div>
-
-            <div class="glass p-8 rounded-3xl space-y-4 game-card transition-all">
-                <div class="text-rose-400 text-3xl">🏎️</div>
-                <h2 class="text-2xl font-bold">Game of Chicken</h2>
-                <p class="text-gray-400 leading-relaxed">A model of conflict where two players benefit by not yielding, but mutual non-yielding results in disaster. It is the core logic of nuclear brinkmanship and price wars.</p>
-                <div class="bg-black/30 p-4 rounded-xl border border-white/5 text-xs mono text-gray-500">
-                    Strategy: Signal madness/incapacity to yield.<br>
-                    Risk: Total systemic collapse.
-                </div>
-            </div>
-
-            <div class="glass p-8 rounded-3xl space-y-4 game-card transition-all">
-                <div class="text-emerald-400 text-3xl">🏹</div>
-                <h2 class="text-2xl font-bold">The Stag Hunt</h2>
-                <p class="text-gray-400 leading-relaxed">A game that describes a conflict between safety and social cooperation. Do you trust others enough to hunt the big prize (the Stag), or do you play it safe and catch a rabbit alone?</p>
-                <div class="bg-black/30 p-4 rounded-xl border border-white/5 text-xs mono text-gray-500">
-                    Key: Assurance & Trust.<br>
-                    Example: International climate agreements.
-                </div>
-            </div>
-
-            <div class="glass p-8 rounded-3xl space-y-4 game-card transition-all border-dashed">
-                <div class="text-gray-400 text-3xl">➕</div>
-                <h2 class="text-2xl font-bold">More Coming Soon</h2>
-                <p class="text-gray-500">We are adding the Ultimatum Game, Tragedy of the Commons, and Zero-Sum simulations in the next update.</p>
-            </div>
+             <!-- Library content here -->
         </div>
 
-        <!-- SECTION: AI LAB -->
-        <div id="view-lab" class="hidden space-y-8 animate-in slide-in-from-bottom-5 duration-500">
-            <div class="max-w-3xl mx-auto glass p-10 rounded-[2.5rem] space-y-6 shadow-2xl">
-                <div class="flex items-center space-x-4 mb-4">
-                    <div class="p-3 bg-indigo-500/20 rounded-2xl text-indigo-400 text-2xl">🧪</div>
-                    <div>
-                        <h2 class="text-2xl font-bold">Scenario Laboratory</h2>
-                        <p class="text-sm text-gray-500">Translate the chaos of the world into strategic matrices.</p>
-                    </div>
+        <div id="view-lab" class="hidden animate-in slide-in-from-bottom-5 duration-500">
+            <div class="max-w-4xl mx-auto glass p-10 rounded-[3rem] space-y-8 shadow-2xl">
+                <div class="space-y-2">
+                    <h2 class="text-3xl font-black">Scenario Laboratory</h2>
+                    <p class="text-gray-500">Describe a conflict to identify its game-theoretic properties.</p>
                 </div>
-
-                <div class="space-y-4">
-                    <label class="text-xs font-bold text-gray-500 uppercase tracking-widest">Input Scenario</label>
-                    <textarea id="lab-input" placeholder="e.g., Two dominant tech companies deciding whether to open-source their AI models..." 
-                        class="w-full h-40 bg-black/40 border border-white/10 rounded-2xl p-6 text-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none transition resize-none"></textarea>
-                </div>
-
+                <textarea id="lab-input" placeholder="e.g., A developer deciding to share code vs. patenting it..." 
+                    class="w-full h-48 bg-black/60 border border-white/10 rounded-3xl p-8 text-gray-200 focus:ring-4 focus:ring-indigo-500/20 outline-none transition resize-none text-lg"></textarea>
+                
                 <div class="flex justify-between items-center">
-                    <button onclick="generateScenarioPrompt()" class="text-xs text-gray-500 hover:text-white transition">🎲 Surprise me with a scenario</button>
-                    <button id="lab-submit" onclick="runLabAnalysis()" class="px-10 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition shadow-lg shadow-indigo-500/20 flex items-center">
-                        <span id="lab-loader" class="loader mr-3 hidden"></span> Run Strategic Mapping
+                    <button onclick="generateRandomScenario()" class="text-xs text-gray-500 hover:text-white transition">Need inspiration?</button>
+                    <button id="lab-submit" onclick="runLabAnalysis()" class="px-12 py-5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition shadow-xl shadow-indigo-500/20 flex items-center">
+                        <span id="lab-loader" class="loader mr-3 hidden"></span> Map Strategic Matrix
                     </button>
                 </div>
 
-                <div id="lab-result" class="mt-8 bg-black/40 rounded-2xl p-8 border border-white/5 min-h-[100px] hidden whitespace-pre-wrap text-sm leading-relaxed text-gray-300">
+                <div id="lab-result" class="mt-10 bg-black/50 rounded-3xl p-8 border border-white/10 hidden prose-dark">
                 </div>
             </div>
         </div>
@@ -248,13 +214,26 @@
     </main>
 
     <script>
-        // --- CORE GAME STATE ---
-        let gameState = {
-            round: 0,
-            p1Score: 0,
-            p2Score: 0,
-            history: [],
-            gameType: 'pd' // pd, chicken, staghunt
+        // --- GAME DATA ---
+        const gameBriefings = {
+            pd: {
+                title: "Prisoner's Dilemma",
+                desc: "Two accomplices are held in separate cells. If both stay silent, they get light sentences. If one betrays the other, they go free while the other gets maximum time. If both betray, both get heavy sentences.",
+                coop: "Remain Silent",
+                defect: "Betray Partner"
+            },
+            chicken: {
+                title: "Game of Chicken",
+                desc: "Two drivers head toward each other at high speed. The first to swerve is the 'Chicken'. If neither swerves, they crash. It is a game of brinkmanship where yielding is safe but costs prestige.",
+                coop: "Swerve (Safe)",
+                defect: "Stay Straight (Aggressive)"
+            },
+            staghunt: {
+                title: "Stag Hunt",
+                desc: "Hunters must trust each other to stay at their posts to catch a large Stag. If one leaves to catch a Rabbit (guaranteed but small), the Stag escapes and the remaining hunters get nothing.",
+                coop: "Hunt the Stag (Trust)",
+                defect: "Catch a Rabbit (Self-Interest)"
+            }
         };
 
         const PAYOFFS = {
@@ -263,9 +242,29 @@
             staghunt: { cc: [5,5], dd: [2,2], cd: [0,3], dc: [3,0] }
         };
 
+        let gameState = { round: 0, p1Score: 0, p2Score: 0, history: [] };
         let chart = null;
 
-        // --- NAVIGATION ---
+        // --- CORE FUNCTIONS ---
+
+        function updateGameContext() {
+            const gameType = document.getElementById('game-selector').value;
+            const context = gameBriefings[gameType];
+            
+            // Update UI with fade effect
+            const briefing = document.getElementById('game-briefing');
+            briefing.style.opacity = '0.5';
+            
+            setTimeout(() => {
+                document.getElementById('briefing-title').innerText = context.title;
+                document.getElementById('briefing-desc').innerText = context.desc;
+                document.getElementById('briefing-coop').innerText = `"${context.coop}"`;
+                document.getElementById('briefing-defect').innerText = `"${context.defect}"`;
+                briefing.style.opacity = '1';
+                resetGame();
+            }, 200);
+        }
+
         function switchTab(tab) {
             ['sim', 'library', 'lab'].forEach(t => {
                 document.getElementById(`view-${t}`).classList.add('hidden');
@@ -275,7 +274,6 @@
             document.getElementById(`tab-${tab}`).className = "px-5 py-2 rounded-lg text-sm font-semibold transition bg-indigo-600 text-white shadow-lg";
         }
 
-        // --- CHARTING ---
         function initChart() {
             const ctx = document.getElementById('mainChart').getContext('2d');
             chart = new Chart(ctx, {
@@ -288,24 +286,21 @@
                     ]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
+                    responsive: true, maintainAspectRatio: false,
                     scales: {
-                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#666' } },
-                        x: { grid: { display: false }, ticks: { color: '#666' } }
+                        y: { grid: { color: 'rgba(255,255,255,0.02)' }, ticks: { color: '#444' } },
+                        x: { grid: { display: false }, ticks: { color: '#444' } }
                     },
                     plugins: { legend: { display: false } }
                 }
             });
         }
 
-        // --- GAME LOGIC ---
         function playRound(move) {
             const gameType = document.getElementById('game-selector').value;
             const strat = document.getElementById('strat-selector').value;
             const lastRound = gameState.history[gameState.history.length - 1];
 
-            // Bot logic
             let botMove = 'cooperate';
             if (strat === 'random') botMove = Math.random() > 0.5 ? 'cooperate' : 'defect';
             else if (strat === 'always_defect') botMove = 'defect';
@@ -329,10 +324,7 @@
             document.getElementById('round-count').innerText = gameState.round;
 
             const banner = document.getElementById('outcome-banner');
-            banner.innerHTML = `You: <span class="${m1==='cooperate'?'text-emerald-400':'text-rose-400'}">${m1.toUpperCase()}</span> | 
-                                Bot: <span class="${m2==='cooperate'?'text-emerald-400':'text-rose-400'}">${m2.toUpperCase()}</span> 
-                                <span class="mx-3 text-gray-600">→</span> 
-                                <span class="text-white">Net ${pts[0]}pts</span>`;
+            banner.innerHTML = `<span class="${m1==='cooperate'?'text-emerald-400':'text-rose-400'}">${m1.toUpperCase()}</span> vs <span class="${m2==='cooperate'?'text-emerald-400':'text-rose-400'}">${m2.toUpperCase()}</span> <span class="mx-4 text-gray-700">/</span> <span class="text-white">+${pts[0]}pts</span>`;
 
             chart.data.labels.push(gameState.round);
             chart.data.datasets[0].data.push(gameState.p1Score);
@@ -347,9 +339,9 @@
             document.getElementById('p1-score').innerText = '0';
             document.getElementById('p2-score').innerText = '0';
             document.getElementById('round-count').innerText = '0';
-            document.getElementById('outcome-banner').innerText = "Game reset. Choose your move.";
+            document.getElementById('outcome-banner').innerText = "Waiting for protocol start...";
             document.getElementById('analyze-btn').disabled = true;
-            document.getElementById('ai-response-box').innerText = "Play at least 5 rounds to trigger analysis.";
+            document.getElementById('ai-response-box').innerHTML = `<p class="italic text-gray-500 text-[10px]">History threshold: 5 rounds required.</p>`;
             
             if (chart) {
                 chart.data.labels = [];
@@ -358,11 +350,11 @@
             }
         }
 
-        // --- AI SECURE GATEWAY ---
+        // --- AI API CALLS (Using Proxy) ---
+
         async function secureAIRequest(prompt, system) {
             document.getElementById('ai-status').classList.remove('hidden');
             try {
-                // CALLING THE PROXY WE CREATED EARLIER
                 const response = await fetch('/api/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -371,50 +363,51 @@
                 const data = await response.json();
                 return data.candidates[0].content.parts[0].text;
             } catch (err) {
-                return "Error connecting to strategic engine. Ensure /api/generate is deployed.";
+                return "## Error\nUnable to reach backend. Verify `api/generate.js` deployment.";
             } finally {
                 document.getElementById('ai-status').classList.add('hidden');
             }
         }
 
         async function requestAIAnalysis() {
-            const historyStr = gameState.history.map(r => `Me:${r.p1}, Bot:${r.p2}`).join(' | ');
-            const system = "You are a Game Theory Grandmaster. Analyze the player's iteration history. Identify their strategy name (e.g. Sucker, Exploiter, Tit-for-Tat). Be brief, clinical, and insightful.";
-            const prompt = `Game: ${document.getElementById('game-selector').value}. Opponent Logic: ${document.getElementById('strat-selector').value}. History: ${historyStr}`;
+            const gameType = document.getElementById('game-selector').value;
+            const hStr = gameState.history.map(r => `${r.p1[0]}:${r.p2[0]}`).join(', ');
+            const system = "You are a Strategic Mastermind. Review move history. Identify player archetype. Give 3 short, actionable bullet points to win. Use Markdown.";
+            const prompt = `Game: ${gameBriefings[gameType].title}. History (Me:Bot): ${hStr}`;
             
             const box = document.getElementById('ai-response-box');
-            box.innerText = "Analyzing neural patterns...";
+            box.innerHTML = '<div class="loader"></div>';
             
-            const result = await secureAIRequest(prompt, system);
-            box.innerText = result;
+            const markdown = await secureAIRequest(prompt, system);
+            box.innerHTML = marked.parse(markdown);
         }
 
         async function runLabAnalysis() {
             const input = document.getElementById('lab-input').value;
-            if (!input) return;
+            if (!input.trim()) return;
 
             const resBox = document.getElementById('lab-result');
             const loader = document.getElementById('lab-loader');
             
             resBox.classList.remove('hidden');
-            resBox.innerText = "Simulating permutations...";
+            resBox.innerHTML = '<div class="flex justify-center p-10"><div class="loader"></div></div>';
             loader.classList.remove('hidden');
 
-            const system = "You are a Strategic Mapping AI. Take the provided scenario and: 1. Name the game model it fits. 2. Define the Payoffs for Party A and B. 3. Predict the most likely real-world outcome. 4. Suggest the 'Slickest' winning move. Format with headers.";
+            const system = "Analyze this conflict. 1. Model Name. 2. Define Payoffs (Matrix style description). 3. Optimal Strategy. 4. Real-world analogy. Use bold headers and clean Markdown.";
             const result = await secureAIRequest(input, system);
             
-            resBox.innerText = result;
+            resBox.innerHTML = marked.parse(result);
             loader.classList.add('hidden');
         }
 
-        function generateScenarioPrompt() {
-            const s = [
-                "Two neighbors deciding whether to build a fence together or wait for the other to pay.",
-                "A coffee shop and a bakery deciding whether to stay open late or close early.",
-                "The US and EU negotiating a carbon tax on imports.",
-                "A whistleblower deciding to leak documents vs. the company offering a bribe."
+        function generateRandomScenario() {
+            const prompts = [
+                "A coffee shop and a bookstore sharing a wall decide whether to install a shared garden.",
+                "Two nations negotiating fishing rights in a disappearing ocean zone.",
+                "A startup founder deciding whether to take VC money (aggressive growth) or bootstrap (safety).",
+                "Siblings deciding who cleans the kitchen after a massive holiday party."
             ];
-            document.getElementById('lab-input').value = s[Math.floor(Math.random()*s.length)];
+            document.getElementById('lab-input').value = prompts[Math.floor(Math.random()*prompts.length)];
         }
 
         window.onload = initChart;
